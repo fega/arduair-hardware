@@ -50,6 +50,10 @@ byte zero = 0x00; //work around for an Issue found  in bildr
 #define CONFIGPIN 23
 #define DHTTYPE DHT22  //dht type
 
+#define MQ131_VIN 5 //MQ131 input voltaje
+#define MQ131_RL 5 //MQ131 Load resistance
+float MQ131_RO=5 //MQ131 Load resistance
+
 #define CO  1 //Ze sensors serials
 #define NO2 2
 #define SO2 3
@@ -258,15 +262,19 @@ void tableWrite(){
  * @return [description]
  */
 float mq131Read(){
-  int sensorValue = analogRead(0);// read analog input pin 0
-  delay(100);// wait 100ms for next reading
+  float sensorValue = analogRead(0);// read analog input pin 0
+  float Rs = ((MQ131_VIN/sensorValue)/sensorValue)*MQ131_RL;
+  float t = temperatureRead();
+  float Rs_Ro = Rs/MQ131_RO - 0.0134*t + 0.2356;
+  float finalValue = pow(11.434*Rs_Ro,2.1249);
 
   #if defined(DEVMODE)
-  Serial.print("[O3]: ");
-  Serial.println(sensorValue, DEC);
+    Serial.print("[O3]: ");
+    Serial.println(finalValue, DEC);
   #endif
 
-  float finalValue =sensorValue;
+  delay(100);// wait 100ms for next reading
+
   return finalValue;
 }
 /**
@@ -704,6 +712,9 @@ void applySetting(String settingName, String settingValue) {
     l_x1=settingValue.toFloat();
   }
   if (settingName=="l_b"){
+    l_b=settingValue.toFloat();
+  }
+  if (settingName=="MQ131_RO"){
     l_b=settingValue.toFloat();
   }
  }
