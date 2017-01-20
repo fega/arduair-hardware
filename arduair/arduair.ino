@@ -52,7 +52,7 @@ byte zero = 0x00; //work around for an Issue found  in bildr
 
 #define MQ131_VIN 5 //MQ131 input voltaje
 #define MQ131_RL 5 //MQ131 Load resistance
-float MQ131_RO=5 //MQ131 Load resistance
+float MQ131_RO=5; //MQ131 Load resistance
 
 #define CO  1 //Ze sensors serials
 #define NO2 2
@@ -135,7 +135,7 @@ void setup() {
  */
 void loop() {
   pmRead();
-  //mq131Read();
+  mq131Read();
   meteorologyRead();
   winsenRead(CO);
   winsenRead(NO2);
@@ -270,6 +270,10 @@ float mq131Read(){
 
   #if defined(DEVMODE)
     Serial.print("[O3]: ");
+    Serial.println(sensorValue);
+    Serial.println(Rs);
+    Serial.println(t);
+    Serial.println(Rs_Ro);
     Serial.println(finalValue, DEC);
   #endif
 
@@ -457,6 +461,10 @@ float humidityRead(){
  */
 byte bcdToDec(byte val)  {
   return ( (val/16*10) + (val%16) );
+}
+byte decToBcd(byte val)
+{
+  return ( (val/10*16) + (val%10) );
 }
 /**
  * This code Get the date from DS1307_ADDRESS,  RTC based on http://bildr.org/2011/03/ds1307-arduino/
@@ -1015,7 +1023,7 @@ void timeConfig(){
   myFile.print("false");
   myFile.println("]");
   myFile.close();
-  log("Clock updated")
+  log("Clock updated");
 }
 /**
  * Log function, it writes a message in a log file.
