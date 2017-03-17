@@ -791,12 +791,11 @@ void wifiBegin(){
  * Disables automatic concentration of ZE sensors and flushes Serials Buffers to prevent unexpectects behaviors from interrupts
  */
 void winsenBegin(){
-  #if defined(DEVMODE)
-  //Serial.println("disabling sensors");
+
   Serial1.begin(9600); //ZE CO-sensor
   Serial2.begin(9600); //ZE NO2-sensor
   Serial3.begin(9600); //ZE SO2-sensor
-  #endif
+
   byte message[] = {0xFF,0x01, 0x78, 0x04, 0x00, 0x00, 0x00, 0x00, 0x83};//TODO: change bye array to "manual form"
   Serial1.write(message,sizeof(message));
   Serial2.write(message,sizeof(message));
