@@ -44,7 +44,7 @@ float winsenRead(){
     }
 
     if (measure[0]==0xff && measure[1]==0x86){
-      ppm = measure[2]*256+measure[3];// this formula depends of the sensor is in the dataSheet
+      ppm = (measure[2]*256+measure[3])*0.1;// this formula depends of the sensor is in the dataSheet
     }else{
       ppm=-1;
     }
