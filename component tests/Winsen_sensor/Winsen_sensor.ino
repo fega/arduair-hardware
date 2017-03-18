@@ -2,26 +2,26 @@ int incomingByte = 0;   // for incoming serial data
 
 void setup() {
         Serial.begin(9600);     // opens serial port, sets data rate to 9600 bps
-        Serial2.begin(9600);
+        Serial3.begin(9600);
         Serial.write("hello");
         delay(1000);
-        Serial2.write(0xFF);
-        Serial2.write(0x01);
-        Serial2.write(0x78);
-        Serial2.write(0x03);
-        Serial2.write(0x00);
-        Serial2.write(0x00);
-        Serial2.write(0x00);
-        Serial2.write(0x00);
-        Serial2.write(0x84);
+        Serial3.write(0xFF);
+        Serial3.write(0x01);
+        Serial3.write(0x78);
+        Serial3.write(0x03);
+        Serial3.write(0x00);
+        Serial3.write(0x00);
+        Serial3.write(0x00);
+        Serial3.write(0x00);
+        Serial3.write(0x84);
 }
 
 //void loop() {
 //        // send data only when you receive data:
-//        //Serial2.write(0x02);
-//        if (Serial2.available() > 0) {
+//        //Serial3.write(0x02);
+//        if (Serial3.available() > 0) {
 //                // read the incoming byte:
-//                incomingByte = Serial2.read();
+//                incomingByte = Serial3.read();
 //                // say what you got:
 //                Serial.print("I received: ");
 //                Serial.println(incomingByte, DEC);
@@ -30,11 +30,11 @@ void setup() {
 
 void loop() {
         // send data only when you receive data:
-        //Serial2.write(0x02);
-        if (Serial2.available() > 0) {
+        //Serial3.write(0x02);
+        if (Serial3.available() > 0) {
                 byte measure[8];
-                Serial2.readBytes(measure,9);
-                incomingByte = Serial2.read();
+                Serial3.readBytes(measure,9);
+                incomingByte = Serial3.read();
                 // say what you got:
                 Serial.print(measure[0],HEX);
                 Serial.print(" ");    
