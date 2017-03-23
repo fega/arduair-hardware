@@ -36,8 +36,8 @@ SDA/SCL BMP180, RTC, Light Module
 #include <SparkFunTSL2561.h>//light sensor library SparkFun TSL2561 Breakout
 #include <WiFi.h>      //wifi shield Library
 
-#define DEVMODE true  //uncomment to get Serial ouput
-#define TABLE_TO_SERIAL_MODE true
+//#define DEVMODE true  //uncomment to get Serial ouput
+//#define TABLESERIAL true
 
 //Default configuration
 #define RED_LED_PIN 2
@@ -229,6 +229,25 @@ void request(){
  * the SD.
  */
 void tableWrite(){
+   #if defined(TABLESERIAL)
+      Serial.print(year);  Serial.print(",");
+      Serial.print(month); Serial.print(",");
+      Serial.print(monthDay);Serial.print(",");
+      Serial.print(hour);  Serial.print(",");
+      Serial.print(minute);Serial.print(",");
+      Serial.print(second);Serial.print(",");
+
+      Serial.print(h);    Serial.print(",");
+      Serial.print(t);    Serial.print(",");
+      Serial.print(p);    Serial.print(",");
+      Serial.print(l);    Serial.print(",");
+      Serial.print(co);   Serial.print(",");
+      Serial.print(so2);  Serial.print(",");
+      Serial.print(no2);  Serial.print(",");
+      Serial.print(pm10); Serial.print(",");
+      Serial.print(pm25); Serial.print(",");
+      Serial.println(" ");
+    #endif
   //write data in SD
   myFile = SD.open("DATA.txt", FILE_WRITE); //open SD data.txt file
 
@@ -241,6 +260,7 @@ void tableWrite(){
     // myFile.print(minute);myFile.print(":");
     // myFile.print(second);
     // myFile.print("+5:00,");
+   
 
     myFile.print(year);  myFile.print(",");
     myFile.print(month); myFile.print(",");
@@ -262,25 +282,6 @@ void tableWrite(){
 
     myFile.println(" ");
     myFile.close();
-    #if defined(TABLE_TO_SERIAL_MODE)
-      Serial.print(year);  Serial.print(",");
-      Serial.print(month); Serial.print(",");
-      Serial.print(monthDay);Serial.print(",");
-      Serial.print(hour);  Serial.print(",");
-      Serial.print(minute);Serial.print(",");
-      Serial.print(second);Serial.print(",");
-
-      Serial.print(h);    Serial.print(",");
-      Serial.print(t);    Serial.print(",");
-      Serial.print(p);    Serial.print(",");
-      Serial.print(l);    Serial.print(",");
-      Serial.print(co);   Serial.print(",");
-      Serial.print(so2);  Serial.print(",");
-      Serial.print(no2);  Serial.print(",");
-      Serial.print(pm10); Serial.print(",");
-      Serial.print(pm25); Serial.print(",");
-      Serial.println(" ");
-    #endif
   }
 
 }
