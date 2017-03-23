@@ -106,13 +106,14 @@ void setup() {
 
   #if defined(DEVMODE)
     Serial.begin(9600);
+    Serial.println("****ARDUAIR START****");
     if (digitalRead(CONFIGPIN)==HIGH) Serial.println("CONFIG PIN: HIGH");
   #endif
 
   #if defined(TABLE_TO_SERIAL_MODE)
     Serial.begin(9600);
   #endif
-
+  delay(1000);
   getDate(DS1307_ADDRESS);
   sdBegin();
   arduairSetup();
@@ -295,12 +296,12 @@ float mq131Read(){
   float finalValue = pow(11.434*Rs_Ro,2.1249);
 
   #if defined(DEVMODE)
-    Serial.print("[O3]: ");
+    Serial.print("  [O3]: ");
     Serial.println(sensorValue);
-    Serial.println(Rs);
-    Serial.println(t);
-    Serial.println(Rs_Ro);
-    Serial.println(finalValue, DEC);
+    //Serial.println(Rs);
+    //Serial.println(t);
+    //Serial.println(Rs_Ro);
+    //Serial.println(finalValue, DEC);
   #endif
 
   delay(100);// wait 100ms for next reading
@@ -498,7 +499,7 @@ byte decToBcd(byte val)
  */
 void getDate(int adress){
   #if defined(DEVMODE)
-  Serial.println("Getting Date");
+  Serial.print("Getting Date: ");
   #endif
 
   // Reset the register pointer
@@ -523,7 +524,7 @@ void getDate(int adress){
     Serial.print(hour);    Serial.print(":");
     Serial.print(minute);  Serial.print(":");
     Serial.print(second);
-    Serial.print("+5:00,   ");
+    Serial.println("+5:00");
   #endif
 }
 /**
@@ -632,14 +633,12 @@ void applySetting(String settingName, String settingValue) {
   }
   if (settingName=="server"){
     settingValue.toCharArray(server,25);
-    Serial.println(server);
   }
   if (settingName=="device"){
     settingValue.toCharArray(device,20);
   }
   if (settingName=="password"){
     settingValue.toCharArray(password,20);
-    Serial.println(password);
   }
   if (settingName=="wifi"){
     wifi==toBoolean(settingValue);
