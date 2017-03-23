@@ -35,7 +35,10 @@ SDA/SCL BMP180, RTC, Light Module
 #include <SFE_BMP180.h>//Sparkfun BMP180 pressure Sensor Library
 #include <SparkFunTSL2561.h>//light sensor library SparkFun TSL2561 Breakout
 #include <WiFi.h>      //wifi shield Library
+
 #define DEVMODE true  //uncomment to get Serial ouput
+#define TABLE_TO_SERIAL_MODE true
+
 //Default configuration
 #define RED_LED_PIN 2
 #define GREEN_LED_PIN 3
@@ -71,7 +74,7 @@ char pass[20];    // your network password (use for WPA, or use as key for WEP)
 char server[25];
 char device[20];
 char password[20];
-bool wifi = true;
+bool wifi = false;
 bool resetClock=false;
 int status = WL_IDLE_STATUS;
 
@@ -104,6 +107,10 @@ void setup() {
   #if defined(DEVMODE)
     Serial.begin(9600);
     if (digitalRead(CONFIGPIN)==HIGH) Serial.println("CONFIG PIN: HIGH");
+  #endif
+
+  #if defined(TABLE_TO_SERIAL_MODE)
+    Serial.begin(9600);
   #endif
 
   getDate(DS1307_ADDRESS);
@@ -254,6 +261,25 @@ void tableWrite(){
 
     myFile.println(" ");
     myFile.close();
+    #if defined(TABLE_TO_SERIAL_MODE)
+      Serial.print(year);  Serial.print(",");
+      Serial.print(month); Serial.print(",");
+      Serial.print(monthDay);Serial.print(",");
+      Serial.print(hour);  Serial.print(",");
+      Serial.print(minute);Serial.print(",");
+      Serial.print(second);Serial.print(",");
+
+      Serial.print(h);    Serial.print(",");
+      Serial.print(t);    Serial.print(",");
+      Serial.print(p);    Serial.print(",");
+      Serial.print(l);    Serial.print(",");
+      Serial.print(co);   Serial.print(",");
+      Serial.print(so2);  Serial.print(",");
+      Serial.print(no2);  Serial.print(",");
+      Serial.print(pm10); Serial.print(",");
+      Serial.print(pm25); Serial.print(",");
+      Serial.println(" ");
+    #endif
   }
 
 }
