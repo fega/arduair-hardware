@@ -1,9 +1,9 @@
 /******************************************************************************
-Arduair project
+Arduair project:
 Fabian Gutierrez @ Universidad Pontificia Bolivariana
 https://github.com/fega/arduair
 
-Arduair project source code.
+Arduair-lite version source code.
 
 # Wiring Scheme.
 ## Arduino
@@ -132,11 +132,11 @@ void setup() {
 void loop() {
   meteorologyRead();
   delay(1000);
-  //pmRead();
-  //mq131Read();
-  //winsenRead(CO);
-  //winsenRead(NO2);
-  //winsenRead(SO2);
+  pmRead();
+  mq131Read();
+  winsenRead(CO);
+  winsenRead(NO2);
+  winsenRead(SO2);
   getDate(DS1307_ADDRESS);
   tableWrite();
   if(wifi){request();}
