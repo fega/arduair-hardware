@@ -36,7 +36,7 @@ SDA/SCL BMP180, RTC, Light Module
 #include <SparkFunTSL2561.h>//light sensor library SparkFun TSL2561 Breakout
 #include <WiFi.h>      //wifi shield Library
 
-#define DEVMODE true  //uncomment to get Serial ouput
+//#define DEVMODE true  //uncomment to get Serial ouput
 //#define TABLESERIAL true
 
 //Default configuration
@@ -83,18 +83,6 @@ float pm10,pm25;
 float p,h,t,l;
 float co,o3,so2,no2;
 unsigned int second, minute,hour,weekDay,monthDay,month,year;
-//calibration variables
-float pm10_x2=1, pm10_x1=1, pm10_b=0,
-      pm25_x2=1, pm25_x1=1, pm25_b=0,
-      co_x2=1,   co_x1=1,   co_b=0,
-      o3_x2=1,   o3_x1=1,   o3_b=0,
-      so2_x2=1,  so2_x1=1,  so2_b=0,
-      no2_x2=1,  no2_x1=1,  no2_b=0,
-      h_x1=1,  h_b=0,
-      p_x1=1,  p_b=0,
-      t_x1=1,  t_b=0,
-      l_x1=1,  l_b=0;
-
 
 /**
  * Arduair configuration initialization
@@ -142,12 +130,13 @@ void setup() {
  *
  */
 void loop() {
-  pmRead();
-  mq131Read();
   meteorologyRead();
-  winsenRead(CO);
-  winsenRead(NO2);
-  winsenRead(SO2);
+  delay(20000);
+  //pmRead();
+  //mq131Read();
+  //winsenRead(CO);
+  //winsenRead(NO2);
+  //winsenRead(SO2);
   getDate(DS1307_ADDRESS);
   tableWrite();
   if(wifi){request();}
@@ -229,25 +218,6 @@ void request(){
  * the SD.
  */
 void tableWrite(){
-   #if defined(TABLESERIAL)
-      Serial.print(year);  Serial.print(",");
-      Serial.print(month); Serial.print(",");
-      Serial.print(monthDay);Serial.print(",");
-      Serial.print(hour);  Serial.print(",");
-      Serial.print(minute);Serial.print(",");
-      Serial.print(second);Serial.print(",");
-
-      Serial.print(h);    Serial.print(",");
-      Serial.print(t);    Serial.print(",");
-      Serial.print(p);    Serial.print(",");
-      Serial.print(l);    Serial.print(",");
-      Serial.print(co);   Serial.print(",");
-      Serial.print(so2);  Serial.print(",");
-      Serial.print(no2);  Serial.print(",");
-      Serial.print(pm10); Serial.print(",");
-      Serial.print(pm25); Serial.print(",");
-      Serial.println(" ");
-    #endif
   //write data in SD
   myFile = SD.open("DATA.txt", FILE_WRITE); //open SD data.txt file
 
@@ -260,7 +230,7 @@ void tableWrite(){
     // myFile.print(minute);myFile.print(":");
     // myFile.print(second);
     // myFile.print("+5:00,");
-   
+
 
     myFile.print(year);  myFile.print(",");
     myFile.print(month); myFile.print(",");
@@ -413,7 +383,7 @@ float pressureRead(){
         }
         #if defined(DEVMODE)
         else Serial.println("error retrieving pressure measurement\n");
-        #endif defined(DEVMODE)
+        #endif
       }
       #if defined(DEVMODE)
       else Serial.println("error starting pressure measurement\n");
@@ -545,10 +515,10 @@ void sdBegin(){
  * Meteorology read function
  */
 void meteorologyRead(){
-  p = calibrate( pressureRead(),    0, p_x1, p_b);
-  l = calibrate( lightRead(),       0, l_x1, l_b);
-  h = calibrate( humidityRead(),    0, h_x1, h_b);
-  t = calibrate( temperatureRead(), 0, t_x1, t_b);
+  p = pressureRead();
+  l = lightRead();
+  h = humidityRead();
+  t = temperatureRead();
   #if defined(DEVMODE)
     Serial.print("  p: ");
     Serial.println(p);
@@ -665,92 +635,6 @@ void applySetting(String settingName, String settingValue) {
   if (settingName=="second"){
     second=settingValue.toInt();
   }
-
-  if (settingName=="pm10_x2"){
-    pm10_x2=settingValue.toFloat();
-  }
-  if (settingName=="pm10_x1"){
-    pm10_x1=settingValue.toFloat();
-  }
-  if (settingName=="pm10_b"){
-    pm10_b=settingValue.toFloat();
-  }
-
-  if (settingName=="pm25_x2"){
-    pm25_x2=settingValue.toFloat();
-  }
-  if (settingName=="pm25_x1"){
-    pm25_x1=settingValue.toFloat();
-  }
-  if (settingName=="pm25_b"){
-    pm25_b=settingValue.toFloat();
-  }
-  if (settingName=="co_x2"){
-    co_x2=settingValue.toFloat();
-  }
-  if (settingName=="co_x1"){
-    co_x1=settingValue.toFloat();
-  }
-  if (settingName=="co_b"){
-    co_b=settingValue.toFloat();
-  }
-
-  if (settingName=="o3_x2"){
-    o3_x2=settingValue.toFloat();
-  }
-  if (settingName=="o3_x1"){
-    o3_x1=settingValue.toFloat();
-  }
-  if (settingName=="o3_b"){
-    o3_b=settingValue.toFloat();
-  }
-  if (settingName=="so2_x2"){
-    so2_x2=settingValue.toFloat();
-  }
-  if (settingName=="so2_x1"){
-    so2_x1=settingValue.toFloat();
-  }
-  if (settingName=="so2_b"){
-    so2_b=settingValue.toFloat();
-  }
-
-  if (settingName=="no2_x2"){
-    no2_x2=settingValue.toFloat();
-  }
-  if (settingName=="no2_x1"){
-    no2_x1=settingValue.toFloat();
-  }
-  if (settingName=="no2_b"){
-    no2_b=settingValue.toFloat();
-  }
-  if (settingName=="h_x1"){
-    h_x1=settingValue.toFloat();
-  }
-  if (settingName=="h_b"){
-    h_b=settingValue.toFloat();
-  }
-
-  if (settingName=="p_x1"){
-    p_x1=settingValue.toFloat();
-  }
-  if (settingName=="p_b"){
-    p_b=settingValue.toFloat();
-  }
-  if (settingName=="t_x1"){
-    t_x1=settingValue.toFloat();
-  }
-  if (settingName=="t_b"){
-    t_b=settingValue.toFloat();
-  }
-  if (settingName=="l_x1"){
-    l_x1=settingValue.toFloat();
-  }
-  if (settingName=="l_b"){
-    l_b=settingValue.toFloat();
-  }
-  if (settingName=="MQ131_RO"){
-    l_b=settingValue.toFloat();
-  }
  }
 
  // converting string to Float
@@ -864,7 +748,7 @@ void winsenRead(int cont){
         }
         if (measure[0]==0xff && measure[1]==0x86){
           ppm = measure[2]*256+measure[3];
-          co=calibrate(ppm, co_x2, co_x1, co_b);
+          co=ppm;
           #if defined(DEVMODE)
           Serial.print("  [CO]:  ");
           Serial.println(ppm);
@@ -886,7 +770,7 @@ void winsenRead(int cont){
         }
         if (measure[0]==0xff && measure[1]==0x86){
           ppm = measure[2]*256+measure[3];
-          no2==calibrate(ppm, no2_x2, no2_x1, no2_b);
+          no2==ppm;
 
           #if defined(DEVMODE)
           Serial.print("  [NO2]: ");
@@ -908,7 +792,7 @@ void winsenRead(int cont){
       }
       if (measure[0]==0xff && measure[1]==0x86){
         ppm = measure[2]*256+measure[3];
-        so2=calibrate(ppm, so2_x2, so2_x1, so2_b);
+        so2=ppm;
 
         #if defined(DEVMODE)
         Serial.print("  [SO2]: ");
@@ -1079,14 +963,4 @@ void log(String message){
 void warn(){
     digitalWrite(RED_LED_PIN,HIGH);
 }
-/**
- * Calibrates the 'value' with the ecuation x^2*value+x*value+b
- * @param  value value to be calibrated
- * @param  x2    cuadratic param
- * @param  x     linear param
- * @param  b     constant param
- * @return       calibrated value
- */
-float calibrate(float value,float x2,float x,float b){
-  return value*x2*x2 + value*x + b;
-}
+
