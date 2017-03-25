@@ -114,14 +114,13 @@ void setup() {
   #if defined(TABLE_TO_SERIAL_MODE)
     Serial.begin(SERIAL_RATE);
   #endif
-  delay(1000);
+  Wire.begin();
   getDate(DS1307_ADDRESS);
   sdBegin();
   arduairSetup();
   if (wifi){wifiBegin();}
   if (config==HIGH) requestConfig();
   if (resetClock==true) timeConfig();
-  Wire.begin();
   dht.begin();
   bmp.begin();
   light.begin();
@@ -848,7 +847,7 @@ void winsenRead(int cont){
   //Serial.println("Winsen Sensor Reading");
   #endif
 
-  byte message[] = {0xFF,0x01, 0x78, 0x03, 0x00, 0x00, 0x00, 0x00, 0x84};
+  byte message[8] = {0xFF,0x01, 0x78, 0x03, 0x00, 0x00, 0x00, 0x00, 0x84};
   unsigned long sampletime_ms = 30000;
   unsigned long starttime=millis();
   byte measure[8]={0x00,0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
