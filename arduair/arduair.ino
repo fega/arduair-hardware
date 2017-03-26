@@ -165,7 +165,7 @@ void request(){
  if (client.connect(server, 80)) {
    #if defined(DEVMODE)
    Serial.println(F("connecting..."));
-   Serial.print(F(F("GET ")));
+   Serial.print(F("GET "));
    Serial.print(F("/api"));
    Serial.print(F("/")); Serial.print(device); Serial.print(F("/")); Serial.print(password);
    Serial.print(monthDay); Serial.print(month);Serial.print(year); Serial.print(hour);Serial.print(minute);
@@ -217,7 +217,7 @@ void request(){
    }
  }
  while(client.available()) {
-   String response=client.readStringUntil(F('}'));
+   String response=client.readStringUntil('}');
      Serial.println(response);
  }
  #endif
@@ -847,7 +847,7 @@ void winsenRead(int cont){
   //Serial.println("Winsen Sensor Reading");
   #endif
 
-  byte message[8] = {0xFF,0x01, 0x78, 0x03, 0x00, 0x00, 0x00, 0x00, 0x84};
+  byte message[] = {0xFF,0x01, 0x78, 0x03, 0x00, 0x00, 0x00, 0x00, 0x84};
   unsigned long sampletime_ms = 30000;
   unsigned long starttime=millis();
   byte measure[8]={0x00,0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -933,7 +933,7 @@ void simple_request(){
   // if there's a successful connection:
   if (client.connect(server, 80)) {
     #if defined(DEVMODE)
-    Serial.println((F"connecting..."));
+    Serial.println(F("connecting..."));
     #endif
 
     //String getRequest ="GET"+"hola"+" "
@@ -1009,7 +1009,7 @@ void requestConfig(){
    }
  }
  while(client.available()) {
-   config=client.readStringUntil(F('\r'));
+   config=client.readStringUntil('\r');
    #if defined(DEVMODE)
      Serial.println(config);
    #endif
