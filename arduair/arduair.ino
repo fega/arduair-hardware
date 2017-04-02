@@ -35,32 +35,29 @@ SDA/SCL BMP180, RTC, Light Module
 #include <SFE_BMP180.h>//Sparkfun BMP180 pressure Sensor Library
 #include <SparkFunTSL2561.h>//light sensor library SparkFun TSL2561 Breakout
 #include <WiFi.h>      //wifi shield Library
+#include <WinsenZE03.h>
 
-#define DEVMODE true  //uncomment to get Serial ouput
+#define DEVMODE true//uncomment to get Serial ouput
 //#define TABLESERIAL true
 
 //Default configuration
-#define SERIAL_RATE 9600
-#define RED_LED_PIN 2
-#define GREEN_LED_PIN 3
-#define YELLOW_LED_PIN 13
-#define DS1307_ADDRESS 0x68 //clock ADRESS
+const int SERIAL_RATE PROGMEM = 9600;
+const int RED_LED_PIN PROGMEM = 2;
+const int GREEN_LED_PIN PROGMEM = 3;
+const int YELLOW_LED_PIN PROGMEM = 13;
+const byte DS1307_ADDRESS PROGMEM = 0x68; //clock ADRESS
 byte zero = 0x00; //work around for an Issue found  in bildr
-#define WIFIPIN 4
-#define DHTPIN 5
-#define SHINYEI_P1 8
-#define SHINYEI_P2 9
-#define SDPIN 10
-#define CONFIGPIN 23
-#define DHTTYPE DHT22  //dht type
+const uint8_t WIFIPIN PROGMEM = 4;
+const uint8_t DHTPIN PROGMEM = 5;
+const uint8_t SHINYEI_P1 PROGMEM = 8;
+const uint8_t SHINYEI_P2 PROGMEM = 9;
+const uint8_t SDPIN PROGMEM = 10;
+const uint8_t CONFIGPIN PROGMEM = 23;
+const uint8_t DHTTYPE PROGMEM = DHT22;  //dht type
 
-#define MQ131_VIN 5 //MQ131 input voltaje
-#define MQ131_RL 5 //MQ131 Load resistance
+const uint8_t MQ131_VIN PROGMEM = 5; //MQ131 input voltaje
+const uint8_t MQ131_RL PROGMEM = 5; //MQ131 Load resistance
 float MQ131_RO=5; //MQ131 Load resistance
-
-#define CO  1 //Ze sensors serials
-#define NO2 2
-#define SO2 3
 
 //Constructors
 File myFile;              //FIle constructor
@@ -68,22 +65,25 @@ WiFiClient client;        //WiFiClient Constructor
 DHT dht(DHTPIN, DHTTYPE); //DHT constructor , m
 SFE_BMP180 bmp;           //bmp constructor
 SFE_TSL2561 light;        //TSL2561 constructor
+WinsenZE03 COSensor;
+WinsenZE03 NO2Sensor;
+WinsenZE03 SO2Sensor;
 
 //Wifi and device config
 char ssid[20]; //  your network SSID (name)
 char pass[20];    // your network password (use for WPA, or use as key for WEP)
 char server[25];
-char device[20];
-char password[20];
+char device[8];
+char password[8];
 bool wifi = false;
 bool resetClock=false;
-int status = WL_IDLE_STATUS;
+uint8_t status = WL_IDLE_STATUS;
 
 //Global variables for measuring
 float pm10,pm25;
 float p,h,t,l;
 float co,o3,so2,no2;
-unsigned int second, minute,hour,weekDay,monthDay,month,year;
+uint8_t second, minute,hour,weekDay,monthDay,month,year;
 //calibration variables
 float pm10_x2=1, pm10_x1=1, pm10_b=0,
       pm25_x2=1, pm25_x1=1, pm25_b=0,
@@ -143,11 +143,14 @@ void setup() {
  */
 void loop() {
   pmRead();
-  mq131Read();
-  meteorologyRead();
-  winsenRead(CO);
-  winsenRead(NO2);
-  winsenRead(SO2);
+  o3  = calibrate(mq131Read(),            o3_x2,  o3_x1,  o3_b);
+  p   = calibrate(pressureRead(),             0,   p_x1,   p_b);
+  l   = calibrate(lightRead(),                0,   l_x1,   l_b);
+  h   = calibrate(humidityRead(),             0,   h_x1,   h_b);
+  t   = calibrate(temperatureRead(),          0,   t_x1,   t_b);
+  co  = calibrate(COSensor.readManual(),  co_x2,  co_x1,  co_b);
+  so2 = calibrate(SO2Sensor.readManual(),so2_x2, so2_x1, so2_b);
+  no2 = calibrate(NO2Sensor.readManual(),no2_x2, no2_x1, no2_b);
   getDate(DS1307_ADDRESS);
   tableWrite();
   if(wifi){request();}
@@ -544,22 +547,22 @@ void sdBegin(){
 /**
  * Meteorology read function
  */
-void meteorologyRead(){
-  p = calibrate( pressureRead(),    0, p_x1, p_b);
-  l = calibrate( lightRead(),       0, l_x1, l_b);
-  h = calibrate( humidityRead(),    0, h_x1, h_b);
-  t = calibrate( temperatureRead(), 0, t_x1, t_b);
-  #if defined(DEVMODE)
-    Serial.print(F("  p: "));
-    Serial.println(p);
-    Serial.print(F("  l: "));
-    Serial.println(l);
-    Serial.print(F("  h: "));
-    Serial.println(h);
-    Serial.print(F("  t: "));
-    Serial.println(t);
-  #endif
-}
+// void meteorologyRead(){
+//   p = calibrate( pressureRead(),    0, p_x1, p_b);
+//   l = calibrate( lightRead(),       0, l_x1, l_b);
+//   h = calibrate( humidityRead(),    0, h_x1, h_b);
+//   t = calibrate( temperatureRead(), 0, t_x1, t_b);
+//   #if defined(DEVMODE)
+//     Serial.print(F("  p: "));
+//     Serial.println(p);
+//     Serial.print(F("  l: "));
+//     Serial.println(l);
+//     Serial.print(F("  h: "));
+//     Serial.println(h);
+//     Serial.print(F("  t: "));
+//     Serial.println(t);
+//   #endif
+// }
 /**
  * Setup all of the configuration from the SD to the arduair
  */
@@ -817,110 +820,12 @@ void wifiBegin(){
  * Disables automatic concentration of ZE sensors and flushes Serials Buffers to prevent unexpectects behaviors from interrupts
  */
 void winsenBegin(){
-
+  COSensor.begin(&Serial1, CO);
+  NO2Sensor.begin(&Serial2, NO2);
+  SO2Sensor.begin(&Serial3, SO2);
   Serial1.begin(SERIAL_RATE); //ZE CO-sensor
   Serial2.begin(SERIAL_RATE); //ZE NO2-sensor
   Serial3.begin(SERIAL_RATE); //ZE SO2-sensor
-
-  byte message[] = {0xFF,0x01, 0x78, 0x04, 0x00, 0x00, 0x00, 0x00, 0x83};//TODO: change bye array to "manual form"
-  Serial1.write(message,sizeof(message));
-  Serial2.write(message,sizeof(message));
-  Serial3.write(message,sizeof(message));
-  delay(1000);//Avoid problems with sensors response
-  while(Serial1.available()>0){
-    byte c = Serial1.read();
-  }
-  while(Serial2.available()>0){
-    byte c = Serial2.read();
-  }
-  while(Serial3.available()>0){
-    byte c = Serial3.read();
-  }
-  delay(1000);
-}
-/**
- * Reads the given contaminant from their respective Winsen Sensor
- * @param cont Contaminant to be read, could be CO, NO2 or SO2
- */
-void winsenRead(int cont){
-  #if defined(DEVMODE)
-  //Serial.println("Winsen Sensor Reading");
-  #endif
-
-  byte message[] = {0xFF,0x01, 0x78, 0x03, 0x00, 0x00, 0x00, 0x00, 0x84};
-  unsigned long sampletime_ms = 30000;
-  unsigned long starttime=millis();
-  byte measure[8]={0x00,0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-  float ppm=0;
-  switch (cont) {
-    case 1:
-      Serial1.write(message,sizeof(message));
-      delay(2000);
-      //for(;sampletime_ms > millis() - starttime;){
-      if (Serial1.available() > 0) {
-        Serial1.readBytes(measure,9);
-        if (measure[0]==0xff && measure[1]==0x78){
-          Serial1.readBytes(measure,9);
-        }
-        if (measure[0]==0xff && measure[1]==0x86){
-          ppm = measure[2]*256+measure[3];
-          co=calibrate(ppm, co_x2, co_x1, co_b);
-          #if defined(DEVMODE)
-          Serial.print(F("  [CO]:  "));
-          Serial.println(ppm);
-          #endif
-
-        }else{
-          co=-1;
-        }
-      }
-      break;
-    case 2:
-      Serial2.write(message,sizeof(message));
-      delay(2000);
-      //for(;sampletime_ms > millis() - starttime;){
-      if (Serial2.available() > 0) {
-        Serial2.readBytes(measure,9);
-        if (measure[0]==0xff && measure[1]==0x78){
-          Serial2.readBytes(measure,9);
-        }
-        if (measure[0]==0xff && measure[1]==0x86){
-          ppm = measure[2]*256+measure[3];
-          no2==calibrate(ppm, no2_x2, no2_x1, no2_b);
-
-          #if defined(DEVMODE)
-          Serial.print(F("  [NO2]: "));
-          Serial.println(ppm);
-          #endif
-        }else{
-          no2=-1;
-        }
-      }
-      break;
-    case 3:
-    Serial3.write(message,sizeof(message));
-    delay(2000);
-    //for(;sampletime_ms > millis() - starttime;){
-    if (Serial3.available() > 0) {
-      Serial3.readBytes(measure,9);
-      if (measure[0]==0xff && measure[1]==0x78){
-        Serial3.readBytes(measure,9);
-      }
-      if (measure[0]==0xff && measure[1]==0x86){
-        ppm = measure[2]*256+measure[3];
-        so2=calibrate(ppm, so2_x2, so2_x1, so2_b);
-
-        #if defined(DEVMODE)
-        Serial.print(F("  [SO2]: "));
-        Serial.println(ppm);
-        #endif
-      }else{
-        so2=-1;
-      }
-    }
-    break;
-  }
-  winsenBegin(); //disable sensors.
 }
 /**
  * Perform a simple requesto
