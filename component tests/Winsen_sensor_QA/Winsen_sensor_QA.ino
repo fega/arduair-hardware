@@ -1,53 +1,37 @@
-/**
- * WInsen ZE03 module Q/A mode simple usage code
- * By: Fabian Enrique Gutierrez Angulo, fega.hg@gmail.com
- * March 17 2017
- */
+/*
+  WinsenZE03.h - This library allows you to set and read the ZE03 Winsen Sensor module.
+	More information: https://github.com/fega/winsen-ze03-arduino-library
+  Created by Fabian Gutierrez <fega.hg@gmail.com>, Apr 3, 2017.
+  MIT.
+*/
 
-void setup(){
-  winsenBegin();
-  Serial.begin(9600);
-}
+#include <WinsenZE03.h>
 
-void loop(){
-  float result = winsenRead();
-  Serial.println(result, DEC);
-}
-/**
- * Setup the Winsen sensor
- */
-void winsenBegin(){
+WinsenZE03 sensor1;
+WinsenZE03 sensor2;
+WinsenZE03 sensor3;
+
+
+void setup() {
+  Serial1.begin(9600);
+  Serial2.begin(9600);
   Serial3.begin(9600);
-  byte setConfig[] = {0xFF,0x01, 0x78, 0x04, 0x00, 0x00, 0x00, 0x00, 0x83};//Set 1 Q/A configuration
-  Serial3.write(setConfig,sizeof(setConfig)); //
-  delay(1000);// Wait for a response
-  while(Serial3.available()>0){ // Flush the response
-    byte c = Serial3.read();
-  }
+  Serial.begin(9600);
+
+  sensor1.begin(&Serial1, SO2);
+  sensor2.begin(&Serial2, NO2);
+  sensor3.begin(&Serial3, CO);
+
+  sensor1.setAs(QA);
+  sensor2.setAs(QA);
+  sensor3.setAs(QA);
 }
-/**
- * Read the sensor
- * @return {float} sensor [C]
- */
-float winsenRead(){
-  byte petition[] = {0xFF,0x01, 0x78, 0x03, 0x00, 0x00, 0x00, 0x00, 0x84};// Petition to get a single result
-  byte measure[8]={0x00,0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};// Space for the response
-  float ppm;
-  Serial3.write(petition,sizeof(petition));
-
-  delay(2000);
-
-  if (Serial3.available() > 0) {
-    Serial3.readBytes(measure,9);
-    if (measure[0]==0xff && measure[1]==0x78){
-      Serial3.readBytes(measure,9);
-    }
-
-    if (measure[0]==0xff && measure[1]==0x86){
-      ppm = measure[2]*256+measure[3];// this formula depends of the sensor is in the dataSheet
-    }else{
-      ppm=-1;
-    }
-  }
-  return ppm;
+void loop() {
+ float ppm = sensor1.readManual();
+ Serial.println(ppm);
+ ppm = sensor2.readManual();
+ Serial.println(ppm);
+ ppm = sensor3.readManual();
+ Serial.println(ppm);
+ Serial.println("---");
 }
