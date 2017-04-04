@@ -119,7 +119,7 @@ void setup() {
   sdBegin();
   arduairSetup();
   if (wifi){wifiBegin();}
-  if (config==HIGH) requestConfig();
+  //if (config==HIGH) requestConfig();
   if (resetClock==true) timeConfig();
   dht.begin();
   bmp.begin();
@@ -149,11 +149,27 @@ void loop() {
   h   = calibrate(humidityRead(),             0,   h_x1,   h_b);
   t   = calibrate(temperatureRead(),          0,   t_x1,   t_b);
   co  = calibrate(COSensor.readManual(),  co_x2,  co_x1,  co_b);
-  so2 = calibrate(SO2Sensor.readManual(),so2_x2, so2_x1, so2_b);
   no2 = calibrate(NO2Sensor.readManual(),no2_x2, no2_x1, no2_b);
+  so2 = calibrate(SO2Sensor.readManual(),so2_x2, so2_x1, so2_b);
   getDate(DS1307_ADDRESS);
   tableWrite();
   if(wifi){request();}
+  #if defined(DEVMODE)
+    Serial.print(F("  [p]: "));
+    Serial.println(p);
+    Serial.print(F("  [l]: "));
+    Serial.println(l);
+    Serial.print(F("  [h]: "));
+    Serial.println(h);
+    Serial.print(F("  [t]: "));
+    Serial.println(t);
+    Serial.print(F("  [co]: "));
+    Serial.println(co);
+    Serial.print(F("  [no2]: "));
+    Serial.println(no2);
+    Serial.print(F("  [so2]: "));
+    Serial.println(so2);
+  #endif
 }
 /**
  * Perform a request to the given server variable. in the form:
@@ -820,13 +836,17 @@ void wifiBegin(){
  * Disables automatic concentration of ZE sensors and flushes Serials Buffers to prevent unexpectects behaviors from interrupts
  */
 void winsenBegin(){
-  COSensor.begin(&Serial1, CO);
-  NO2Sensor.begin(&Serial2, NO2);
-  SO2Sensor.begin(&Serial3, SO2);
   Serial1.begin(SERIAL_RATE); //ZE CO-sensor
   Serial2.begin(SERIAL_RATE); //ZE NO2-sensor
   Serial3.begin(SERIAL_RATE); //ZE SO2-sensor
+  COSensor.begin(&Serial1, CO);
+  NO2Sensor.begin(&Serial2, NO2);
+  SO2Sensor.begin(&Serial3, SO2);
+  COSensor.setAs(QA);
+  NO2Sensor.setAs(QA);
+  SO2Sensor.setAs(QA);
 }
+
 /**
  * Perform a simple requesto
  */
