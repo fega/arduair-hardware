@@ -655,10 +655,10 @@ void applySetting(String settingName, String settingValue) {
     settingValue.toCharArray(server,25);
   }
   if (settingName==F("device")){
-    settingValue.toCharArray(device,20);
+    settingValue.toCharArray(device,8);
   }
   if (settingName==F("password")){
-    settingValue.toCharArray(password,20);
+    settingValue.toCharArray(password,8);
   }
   if (settingName==F("wifi")){
     wifi==toBoolean(settingValue);
@@ -772,30 +772,33 @@ void applySetting(String settingName, String settingValue) {
   }
  }
 
- // converting string to Float
- float toFloat(String settingValue){
- char floatbuf[settingValue.length()+1];
- settingValue.toCharArray(floatbuf, sizeof(floatbuf));
- float f = atof(floatbuf);
- return f;
- }
-
- long toLong(String settingValue){
- char longbuf[settingValue.length()+1];
- settingValue.toCharArray(longbuf, sizeof(longbuf));
- long l = atol(longbuf);
- return l;
- }
-
- // Converting String to integer and then to boolean
- // 1 = true
- // 0 = false
- boolean toBoolean(String settingValue) {
- if(settingValue.toInt()==1){
- return true;
- } else {
- return false;
- }
+/**
+* Converts a string to a float
+* @type {String}
+*/
+float toFloat(String settingValue){
+  char floatbuf[settingValue.length()+1];
+  settingValue.toCharArray(floatbuf, sizeof(floatbuf));
+  float f = atof(floatbuf);
+  return f;
+}
+/
+long toLong(String settingValue){
+  char longbuf[settingValue.length()+1];
+  settingValue.toCharArray(longbuf, sizeof(longbuf));
+  long l = atol(longbuf);
+  return l;
+}
+/**
+ * Converts a "true" string to true boolean, if this is not the case, returns false
+ * @type {String}
+ */
+boolean toBoolean(String settingValue) {
+  if(settingValue=="true"){
+    return true;
+  } else {
+    return false;
+  }
 }
 /**
  * This function begins wifi connection
