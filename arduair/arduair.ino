@@ -91,11 +91,10 @@ float pm10_x2=1, pm10_x1=1, pm10_b=0,
       o3_x2=1,   o3_x1=1,   o3_b=0,
       so2_x2=1,  so2_x1=1,  so2_b=0,
       no2_x2=1,  no2_x1=1,  no2_b=0,
-      h_x1=1,  h_b=0,
-      p_x1=1,  p_b=0,
-      t_x1=1,  t_b=0,
-      l_x1=1,  l_b=0;
-
+                 h_x1=1,    h_b=0,
+                 p_x1=1,    p_b=0,
+                 t_x1=1,    t_b=0,
+                 l_x1=1,    l_b=0;
 
 /**
  * Arduair configuration initialization
@@ -118,8 +117,6 @@ void setup() {
   getDate(DS1307_ADDRESS);
   sdBegin();
   arduairSetup();
-  Serial.print(F("WIFI: "));
-  Serial.println(wifi);
   if (wifi){wifiBegin();}
   if (config==HIGH) requestConfig();
   if (resetClock==true) timeConfig();
@@ -324,10 +321,6 @@ float mq131Read(){
   #if defined(DEVMODE)
     Serial.print(F("  [O3]: "));
     Serial.println(sensorValue);
-    //Serial.println(Rs);
-    //Serial.println(t);
-    //Serial.println(Rs_Ro);
-    //Serial.println(finalValue, DEC);
   #endif
 
   delay(100);// wait 100ms for next reading
@@ -423,10 +416,6 @@ float pressureRead(){
         state = bmp.getPressure(P,T);
         if (state != 0)
         {
-          // Print out the measurement:
-          //Serial.print("absolute pressure: ");
-          //Serial.print(P*0.750061561303,2);
-          //Serial.println(" mmHg");
           return P;
         }
         #if defined(DEVMODE)
@@ -460,15 +449,8 @@ float lightRead(){
   if (light.getData(data0,data1))
   {
     // getData() returned true, communication was successful
-
-    //    Serial.print("data0: ");
-    //    Serial.print(data0);
-    //    Serial.print(" data1: ");
-    //    Serial.print(data1);
-
     // To calculate lux, pass all your settings and readings
     // to the getLux() function.
-
     // The getLux() function will return 1 if the calculation
     // was successful, or 0 if one or both of the sensors was
     // saturated (too much light). If this happens, you can
@@ -555,6 +537,7 @@ void sdBegin(){
     return;
   }
   log(F("SD done."));
+
   #if defined(DEVMODE)
   Serial.println(F("SD done"));
   #endif
@@ -608,14 +591,12 @@ void arduairSetup(){
       }
       if(character == ']'){
 
-      #if defined(DEVMODE)
-      Serial.print(F("  "));
-      Serial.print(settingName);
-      Serial.print(F(": "));
-      Serial.println(settingValue);
-      #endif
-
-
+        #if defined(DEVMODE)
+          Serial.print(F("  "));
+          Serial.print(settingName);
+          Serial.print(F(": "));
+          Serial.println(settingValue);
+        #endif
        // Apply the value to the parameter
        applySetting(settingName,settingValue);
        // Reset Strings
@@ -635,7 +616,7 @@ void arduairSetup(){
  warn();
  }
  #if defined(DEVMODE)
- Serial.println(F("End ArduairSetup"));
+ Serial.println(F("****End ArduairSetup****"));
  #endif
 }
 /**
@@ -770,7 +751,6 @@ void applySetting(String settingName, String settingValue) {
     l_b=settingValue.toFloat();
   }
  }
-
 /**
 * Converts a string to a float
 * @type {String}
@@ -841,7 +821,6 @@ void winsenBegin(){
   NO2Sensor.setAs(QA);
   SO2Sensor.setAs(QA);
 }
-
 /**
  * Perform a simple requesto
  */
