@@ -46,7 +46,7 @@ const int RED_LED_PIN PROGMEM = 2;
 const int GREEN_LED_PIN PROGMEM = 3;
 const int YELLOW_LED_PIN PROGMEM = 13;
 const byte DS1307_ADDRESS PROGMEM = 0x68; //clock ADRESS
-byte zero = 0x00; //work around for an Issue found  in bildr
+const byte zero PROGMEM = 0x00; //work around for an Issue found  in bildr
 const uint8_t WIFIPIN PROGMEM = 4;
 const uint8_t DHTPIN PROGMEM = 5;
 const uint8_t SHINYEI_P1 PROGMEM = 8;
@@ -57,7 +57,7 @@ const uint8_t DHTTYPE PROGMEM = DHT22;  //dht type
 
 const uint8_t MQ131_VIN PROGMEM = 5; //MQ131 input voltaje
 const uint8_t MQ131_RL PROGMEM = 5; //MQ131 Load resistance
-float MQ131_RO=5; //MQ131 Load resistance
+const float MQ131_RO PROGMEM =5; //MQ131 Load resistance
 
 //Constructors
 File myFile;              //FIle constructor
@@ -110,16 +110,18 @@ void setup() {
     Serial.println(F("****ARDUAIR START****"));
     if (digitalRead(CONFIGPIN)==HIGH) Serial.println(F("CONFIG PIN: HIGH"));
   #endif
-
   #if defined(TABLE_TO_SERIAL_MODE)
     Serial.begin(SERIAL_RATE);
   #endif
+
   Wire.begin();
   getDate(DS1307_ADDRESS);
   sdBegin();
   arduairSetup();
+  Serial.print(F("WIFI: "));
+  Serial.println(wifi);
   if (wifi){wifiBegin();}
-  //if (config==HIGH) requestConfig();
+  if (config==HIGH) requestConfig();
   if (resetClock==true) timeConfig();
   dht.begin();
   bmp.begin();
@@ -155,20 +157,24 @@ void loop() {
   tableWrite();
   if(wifi){request();}
   #if defined(DEVMODE)
-    Serial.print(F("  [p]: "));
+    Serial.print(F("  [p]:  "));
     Serial.println(p);
-    Serial.print(F("  [l]: "));
+    Serial.print(F("  [l]:  "));
     Serial.println(l);
-    Serial.print(F("  [h]: "));
+    Serial.print(F("  [h]:  "));
     Serial.println(h);
-    Serial.print(F("  [t]: "));
+    Serial.print(F("  [t]:  "));
     Serial.println(t);
     Serial.print(F("  [co]: "));
     Serial.println(co);
-    Serial.print(F("  [no2]: "));
+    Serial.print(F("  [no2]:"));
     Serial.println(no2);
-    Serial.print(F("  [so2]: "));
+    Serial.print(F("  [so2]:"));
     Serial.println(so2);
+    Serial.print(F("  [PM10]:"));
+    Serial.println(pm10);
+    Serial.print(F("  [PM25]:"));
+    Serial.println(pm25);
   #endif
 }
 /**
@@ -394,13 +400,6 @@ void pmRead(){
 
   pm10 = concLarge;
   pm25 = concSmall;
-
-  #if defined(DEVMODE)
-  Serial.print(F("  PM 10: "));
-  Serial.println(pm10);
-  Serial.print(F("  PM 2.5: "));
-  Serial.println(pm25);
-  #endif
 }
 /**
  * Reads pressure from BMP pressure Sensor
@@ -661,7 +660,7 @@ void applySetting(String settingName, String settingValue) {
     settingValue.toCharArray(password,8);
   }
   if (settingName==F("wifi")){
-    wifi==toBoolean(settingValue);
+    wifi=toBoolean(settingValue);
   }
   if (settingName==F("resetclock")){
     resetClock=toBoolean(settingValue);
@@ -781,13 +780,6 @@ float toFloat(String settingValue){
   settingValue.toCharArray(floatbuf, sizeof(floatbuf));
   float f = atof(floatbuf);
   return f;
-}
-/
-long toLong(String settingValue){
-  char longbuf[settingValue.length()+1];
-  settingValue.toCharArray(longbuf, sizeof(longbuf));
-  long l = atol(longbuf);
-  return l;
 }
 /**
  * Converts a "true" string to true boolean, if this is not the case, returns false
