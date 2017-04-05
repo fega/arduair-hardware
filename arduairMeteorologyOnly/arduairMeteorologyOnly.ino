@@ -36,30 +36,27 @@ SDA/SCL BMP180, RTC, Light Module
 #include <SparkFunTSL2561.h>//light sensor library SparkFun TSL2561 Breakout
 #include <WiFi.h>      //wifi shield Library
 
-//#define DEVMODE true  //uncomment to get Serial ouput
+#define DEVMODE true//uncomment to get Serial ouput
 //#define TABLESERIAL true
 
 //Default configuration
-#define RED_LED_PIN 2
-#define GREEN_LED_PIN 3
-#define YELLOW_LED_PIN 13
-#define DS1307_ADDRESS 0x68 //clock ADRESS
+const int SERIAL_RATE PROGMEM = 9600;
+const int RED_LED_PIN PROGMEM = 2;
+const int GREEN_LED_PIN PROGMEM = 3;
+const int YELLOW_LED_PIN PROGMEM = 13;
+const byte DS1307_ADDRESS PROGMEM = 0x68; //clock ADRESS
 byte zero = 0x00; //work around for an Issue found  in bildr
-#define WIFIPIN 4
-#define DHTPIN 5
-#define SHINYEI_P1 8
-#define SHINYEI_P2 9
-#define SDPIN 10
-#define CONFIGPIN 23
-#define DHTTYPE DHT22  //dht type
+const uint8_t WIFIPIN PROGMEM = 4;
+const uint8_t DHTPIN PROGMEM = 5;
+const uint8_t SHINYEI_P1 PROGMEM = 8;
+const uint8_t SHINYEI_P2 PROGMEM = 9;
+const uint8_t SDPIN PROGMEM = 10;
+const uint8_t CONFIGPIN PROGMEM = 23;
+const uint8_t DHTTYPE PROGMEM = DHT22;  //dht type
 
-#define MQ131_VIN 5 //MQ131 input voltaje
-#define MQ131_RL 5 //MQ131 Load resistance
+const uint8_t MQ131_VIN PROGMEM = 5; //MQ131 input voltaje
+const uint8_t MQ131_RL PROGMEM = 5; //MQ131 Load resistance
 float MQ131_RO=5; //MQ131 Load resistance
-
-#define CO  1 //Ze sensors serials
-#define NO2 2
-#define SO2 3
 
 //Constructors
 File myFile;              //FIle constructor
@@ -68,21 +65,31 @@ DHT dht(DHTPIN, DHTTYPE); //DHT constructor , m
 SFE_BMP180 bmp;           //bmp constructor
 SFE_TSL2561 light;        //TSL2561 constructor
 
+
 //Wifi and device config
 char ssid[20]; //  your network SSID (name)
 char pass[20];    // your network password (use for WPA, or use as key for WEP)
 char server[25];
-char device[20];
-char password[20];
+char device[8];
+char password[8];
 bool wifi = false;
 bool resetClock=false;
-int status = WL_IDLE_STATUS;
+uint8_t status = WL_IDLE_STATUS;
 
 //Global variables for measuring
 float pm10,pm25;
 float p,h,t,l;
 float co,o3,so2,no2;
-unsigned int second, minute,hour,weekDay,monthDay,month,year;
+uint8_t second, minute,hour,weekDay,monthDay,month,year;
+//calibration variables
+float pm10_x2=1, pm10_x1=1, pm10_b=0,
+      pm25_x2=1, pm25_x1=1, pm25_b=0,
+      o3_x2=1,   o3_x1=1,   o3_b=0,
+      h_x1=1,  h_b=0,
+      p_x1=1,  p_b=0,
+      t_x1=1,  t_b=0,
+      l_x1=1,  l_b=0;
+
 
 /**
  * Arduair configuration initialization
@@ -93,26 +100,24 @@ void setup() {
   int config = digitalRead(CONFIGPIN);
 
   #if defined(DEVMODE)
-    Serial.begin(9600);
-    Serial.println("****ARDUAIR START****");
-    if (digitalRead(CONFIGPIN)==HIGH) Serial.println("CONFIG PIN: HIGH");
+    Serial.begin(SERIAL_RATE);
+    Serial.println(F("****ARDUAIR START****"));
+    if (digitalRead(CONFIGPIN)==HIGH) Serial.println(F("CONFIG PIN: HIGH"));
   #endif
 
   #if defined(TABLE_TO_SERIAL_MODE)
-    Serial.begin(9600);
+    Serial.begin(SERIAL_RATE);
   #endif
-  delay(1000);
+  Wire.begin();
   getDate(DS1307_ADDRESS);
   sdBegin();
   arduairSetup();
   if (wifi){wifiBegin();}
-  if (config==HIGH) requestConfig();
+  //if (config==HIGH) requestConfig();
   if (resetClock==true) timeConfig();
-  Wire.begin();
   dht.begin();
   bmp.begin();
   light.begin();
-  winsenBegin();
   digitalWrite(GREEN_LED_PIN,LOW); // Setup Light Off
 }
 /**
@@ -130,16 +135,25 @@ void setup() {
  *
  */
 void loop() {
-  meteorologyRead();
-  delay(20000);
-  //pmRead();
-  //mq131Read();
-  //winsenRead(CO);
-  //winsenRead(NO2);
-  //winsenRead(SO2);
+  pmRead();
+  o3  = calibrate(mq131Read(),            o3_x2,  o3_x1,  o3_b);
+  p   = calibrate(pressureRead(),             0,   p_x1,   p_b);
+  l   = calibrate(lightRead(),                0,   l_x1,   l_b);
+  h   = calibrate(humidityRead(),             0,   h_x1,   h_b);
+  t   = calibrate(temperatureRead(),          0,   t_x1,   t_b);
   getDate(DS1307_ADDRESS);
   tableWrite();
   if(wifi){request();}
+  #if defined(DEVMODE)
+    Serial.print(F("  [p]: "));
+    Serial.println(p);
+    Serial.print(F("  [l]: "));
+    Serial.println(l);
+    Serial.print(F("  [h]: "));
+    Serial.println(h);
+    Serial.print(F("  [t]: "));
+    Serial.println(t);
+  #endif
 }
 /**
  * Perform a request to the given server variable. in the form:
@@ -153,44 +167,44 @@ void request(){
  // if there's a successful connection:
  if (client.connect(server, 80)) {
    #if defined(DEVMODE)
-   Serial.println("connecting...");
-   Serial.print("GET ");
-   Serial.print("/api");
-   Serial.print("/"); Serial.print(device); Serial.print("/"); Serial.print(password);
+   Serial.println(F("connecting..."));
+   Serial.print(F("GET "));
+   Serial.print(F("/api"));
+   Serial.print(F("/")); Serial.print(device); Serial.print(F("/")); Serial.print(password);
    Serial.print(monthDay); Serial.print(month);Serial.print(year); Serial.print(hour);Serial.print(minute);
    #endif
    //String getRequest ="GET"+"hola"+" "
    // send the HTTP GET request:
-   client.print("GET ");
-   client.print("/api");
-   client.print("/"); client.print(device); client.print("/"); client.print(password);
+   client.print(F("GET "));
+   client.print(F("/api"));
+   client.print(F("/")); client.print(device); client.print(F("/")); client.print(password);
    // HTTP time
    client.print(monthDay);client.print(month);client.print(year);client.print(hour);client.print(minute);
    //http GET end
-   ; client.print(" HTTP/1.1");
-   client.println("");
+   ; client.print(F(" HTTP/1.1"));
+   client.println(F(""));
    // parameters:
-   client.print("h="); client.print(h); client.print(",");
-   client.print("t="); client.print(t); client.print(",");
-   client.print("l="); client.print(l); client.print(",");
-   client.print("co="); client.print(pm10); client.print(",");
-   client.print("o3="); client.print(pm10); client.print(",");
-   client.print("pm10="); client.print(pm10); client.print(",");
-   client.print("pm25="); client.print(pm25); client.print(",");
-   client.print("so2="); client.print(so2); client.print(",");
-   client.print("no2="); client.print(no2); client.print(",");
-   client.println("");
+   client.print(F("h=")); client.print(h); client.print(F(","));
+   client.print(F("t=")); client.print(t); client.print(F(","));
+   client.print(F("l=")); client.print(l); client.print(F(","));
+   client.print(F("co=")); client.print(pm10); client.print(F(","));
+   client.print(F("o3=")); client.print(pm10); client.print(F(","));
+   client.print(F("pm10=")); client.print(pm10); client.print(F(","));
+   client.print(F("pm25=")); client.print(pm25); client.print(F(","));
+   client.print(F("so2=")); client.print(so2); client.print(F(","));
+   client.print(F("no2=")); client.print(no2); client.print(F(","));
+   client.println(F(""));
    //server
-   client.print("Host: ");client.print(server);
+   client.print(F("Host: "));client.print(server);
    //client.println("User-Agent: Arduair");
-   client.println("Connection: close");
+   client.println(F("Connection: close"));
    client.println();
    #if defined(DEVMODE)
-   Serial.println("Request done");
+   Serial.println(F("Request done"));
    #endif
  }else{
   #if defined(DEVMODE)
-  Serial.println("Conecction fail");
+  Serial.println(F("Conecction fail"));
    #endif
  }
  #if defined(DEVMODE)
@@ -198,11 +212,11 @@ void request(){
   while (client.available() == 0) {
    if (timeout - millis() < 0) {
      #if defined(DEVMODE)
-     Serial.println("client Timeout !");
+     Serial.println(F("client Timeout !"));
      #endif
      client.stop();
      warn();
-     log("client Timeout !");
+     log(F("client Timeout !"));
    }
  }
  while(client.available()) {
@@ -218,8 +232,27 @@ void request(){
  * the SD.
  */
 void tableWrite(){
+   #if defined(TABLESERIAL)
+      Serial.print(year);  Serial.print(F(","));
+      Serial.print(month); Serial.print(F(","));
+      Serial.print(monthDay);Serial.print(F(","));
+      Serial.print(hour);  Serial.print(F(","));
+      Serial.print(minute);Serial.print(F(","));
+      Serial.print(second);Serial.print(F(","));
+
+      Serial.print(h);    Serial.print(F(","));
+      Serial.print(t);    Serial.print(F(","));
+      Serial.print(p);    Serial.print(F(","));
+      Serial.print(l);    Serial.print(F(","));
+      Serial.print(co);   Serial.print(F(","));
+      Serial.print(so2);  Serial.print(F(","));
+      Serial.print(no2);  Serial.print(F(","));
+      Serial.print(pm10); Serial.print(F(","));
+      Serial.print(pm25); Serial.print(F(","));
+      Serial.println(F(" "));
+    #endif
   //write data in SD
-  myFile = SD.open("DATA.txt", FILE_WRITE); //open SD data.txt file
+  myFile = SD.open(F("DATA.txt"), FILE_WRITE); //open SD data.txt file
 
   if (myFile){
     //write ISO date ex: 1994-11-05T08:15:30-05:00
@@ -232,25 +265,25 @@ void tableWrite(){
     // myFile.print("+5:00,");
 
 
-    myFile.print(year);  myFile.print(",");
-    myFile.print(month); myFile.print(",");
-    myFile.print(monthDay);myFile.print(",");
-    myFile.print(hour);  myFile.print(",");
-    myFile.print(minute);myFile.print(",");
-    myFile.print(second);myFile.print(",");
+    myFile.print(year);  myFile.print(F(","));
+    myFile.print(month); myFile.print(F(","));
+    myFile.print(monthDay);myFile.print(F(","));
+    myFile.print(hour);  myFile.print(F(","));
+    myFile.print(minute);myFile.print(F(","));
+    myFile.print(second);myFile.print(F(","));
 
-    myFile.print(h);    myFile.print(",");
-    myFile.print(t);    myFile.print(",");
-    myFile.print(p);    myFile.print(",");
-    myFile.print(l);    myFile.print(",");
-    myFile.print(co);   myFile.print(",");
-    myFile.print(so2);  myFile.print(",");
-    myFile.print(no2);  myFile.print(",");
-    myFile.print(pm10); myFile.print(",");
-    myFile.print(pm25); myFile.print(",");
+    myFile.print(h);    myFile.print(F(","));
+    myFile.print(t);    myFile.print(F(","));
+    myFile.print(p);    myFile.print(F(","));
+    myFile.print(l);    myFile.print(F(","));
+    myFile.print(co);   myFile.print(F(","));
+    myFile.print(so2);  myFile.print(F(","));
+    myFile.print(no2);  myFile.print(F(","));
+    myFile.print(pm10); myFile.print(F(","));
+    myFile.print(pm25); myFile.print(F(","));
 
 
-    myFile.println(" ");
+    myFile.println(F(" "));
     myFile.close();
   }
 
@@ -267,7 +300,7 @@ float mq131Read(){
   float finalValue = pow(11.434*Rs_Ro,2.1249);
 
   #if defined(DEVMODE)
-    Serial.print("  [O3]: ");
+    Serial.print(F("  [O3]: "));
     Serial.println(sensorValue);
     //Serial.println(Rs);
     //Serial.println(t);
@@ -285,7 +318,7 @@ float mq131Read(){
  */
 void pmRead(){
   #if defined(DEVMODE)
-  Serial.println("Started  PM read");
+  Serial.println(F("Started  PM read"));
   #endif
 
   unsigned long triggerOnP10, triggerOffP10, pulseLengthP10, durationP10;
@@ -347,9 +380,9 @@ void pmRead(){
   pm25 = concSmall;
 
   #if defined(DEVMODE)
-  Serial.print("  PM 10: ");
+  Serial.print(F("  PM 10: "));
   Serial.println(pm10);
-  Serial.print("  PM 2.5: ");
+  Serial.print(F("  PM 2.5: "));
   Serial.println(pm25);
   #endif
 }
@@ -382,19 +415,19 @@ float pressureRead(){
           return P;
         }
         #if defined(DEVMODE)
-        else Serial.println("error retrieving pressure measurement\n");
-        #endif
+        else Serial.println(F("error retrieving pressure measurement\n"));
+        #endif defined(DEVMODE)
       }
       #if defined(DEVMODE)
-      else Serial.println("error starting pressure measurement\n");
+      else Serial.println(F("error starting pressure measurement\n"));
       #endif
     }
     #if defined(DEVMODE)
-    else Serial.println("error retrieving temperature measurement\n");
+    else Serial.println(F("error retrieving temperature measurement\n"));
     #endif
   }
   #if defined(DEVMODE)
-  else Serial.println("error starting temperature measurement\n");
+  else Serial.println(F("error starting temperature measurement\n"));
   #endif
 }
 /**
@@ -470,7 +503,7 @@ byte decToBcd(byte val)
  */
 void getDate(int adress){
   #if defined(DEVMODE)
-  Serial.print("Getting Date: ");
+  Serial.print(F("Getting Date: "));
   #endif
 
   // Reset the register pointer
@@ -489,13 +522,13 @@ void getDate(int adress){
   year = bcdToDec(Wire.read());
 
   #if defined(DEVMODE)
-    Serial.print(year);    Serial.print("-");
-    Serial.print(month);   Serial.print("-");
-    Serial.print(monthDay);Serial.print("T");
-    Serial.print(hour);    Serial.print(":");
-    Serial.print(minute);  Serial.print(":");
+    Serial.print(year);    Serial.print(F("-"));
+    Serial.print(month);   Serial.print(F("-"));
+    Serial.print(monthDay);Serial.print(F("T"));
+    Serial.print(hour);    Serial.print(F(":"));
+    Serial.print(minute);  Serial.print(F(":"));
     Serial.print(second);
-    Serial.println("+5:00");
+    Serial.println(F("+5:00"));
   #endif
 }
 /**
@@ -503,31 +536,12 @@ void getDate(int adress){
  */
 void sdBegin(){
   if (!SD.begin(4)) {
-    log("SD failed!");warn();
+    log(F("SD failed!"));warn();
     return;
   }
-  log("SD done.");
+  log(F("SD done."));
   #if defined(DEVMODE)
-  Serial.println("SD done");
-  #endif
-}
-/**
- * Meteorology read function
- */
-void meteorologyRead(){
-  p = pressureRead();
-  l = lightRead();
-  h = humidityRead();
-  t = temperatureRead();
-  #if defined(DEVMODE)
-    Serial.print("  p: ");
-    Serial.println(p);
-    Serial.print("  l: ");
-    Serial.println(l);
-    Serial.print("  h: ");
-    Serial.println(h);
-    Serial.print("  t: ");
-    Serial.println(t);
+  Serial.println(F("SD done"));
   #endif
 }
 /**
@@ -535,13 +549,13 @@ void meteorologyRead(){
  */
 void arduairSetup(){
  #if defined(DEVMODE)
- Serial.println("start arduairSetup...");
+ Serial.println(F("start arduairSetup..."));
  #endif
 
  char character;
  String settingName;
  String settingValue;
- myFile = SD.open("CONFIG.txt");
+ myFile = SD.open(F("CONFIG.txt"));
  if (myFile) {
    while (myFile.available()) {
      character = myFile.read();
@@ -561,9 +575,9 @@ void arduairSetup(){
       if(character == ']'){
 
       #if defined(DEVMODE)
-      Serial.print("  ");
+      Serial.print(F("  "));
       Serial.print(settingName);
-      Serial.print(": ");
+      Serial.print(F(": "));
       Serial.println(settingValue);
       #endif
 
@@ -580,14 +594,14 @@ void arduairSetup(){
  } else {
  // if the file didn't open, print an error:
  #if defined(DEVMODE)
- Serial.println("error opening settings.txt");
+ Serial.println(F("error opening CONFIG.txt"));
  #endif
 
- log("error opening settings.txt");
+ log(F("error opening CONFIG.txt"));
  warn();
  }
  #if defined(DEVMODE)
- Serial.println("End ArduairSetup");
+ Serial.println(F("End ArduairSetup"));
  #endif
 }
 /**
@@ -596,44 +610,73 @@ void arduairSetup(){
 * @param settingValue Value to set
 */
 void applySetting(String settingName, String settingValue) {
-  if (settingName=="network"){
+  if (settingName==F("network")){
     settingValue.toCharArray(ssid,20);
   }
-  if (settingName=="networkpass"){
+  if (settingName==F("networkpass")){
     settingValue.toCharArray(pass,20);
   }
-  if (settingName=="server"){
+  if (settingName==F("server")){
     settingValue.toCharArray(server,25);
   }
-  if (settingName=="device"){
+  if (settingName==F("device")){
     settingValue.toCharArray(device,20);
   }
-  if (settingName=="password"){
+  if (settingName==F("password")){
     settingValue.toCharArray(password,20);
   }
-  if (settingName=="wifi"){
+  if (settingName==F("wifi")){
     wifi==toBoolean(settingValue);
   }
-  if (settingName=="resetclock"){
+  if (settingName==F("resetclock")){
     resetClock=toBoolean(settingValue);
   }
-  if (settingName=="year"){
+  if (settingName==F("year")){
     year=settingValue.toInt();
   }
-  if (settingName=="month"){
+  if (settingName==F("month")){
     month=settingValue.toInt();
   }
-  if (settingName=="day"){
+  if (settingName==F("day")){
     monthDay=settingValue.toInt();
   }
-  if (settingName=="hour"){
+  if (settingName==F("hour")){
     hour=settingValue.toInt();
   }
-  if (settingName=="minute"){
+  if (settingName==F("minute")){
     minute=settingValue.toInt();
   }
-  if (settingName=="second"){
+  if (settingName==F("second")){
     second=settingValue.toInt();
+  }
+
+  if (settingName==F("h_x1")){
+    h_x1=settingValue.toFloat();
+  }
+  if (settingName==F("h_b")){
+    h_b=settingValue.toFloat();
+  }
+
+  if (settingName==F("p_x1")){
+    p_x1=settingValue.toFloat();
+  }
+  if (settingName==F("p_b")){
+    p_b=settingValue.toFloat();
+  }
+  if (settingName==F("t_x1")){
+    t_x1=settingValue.toFloat();
+  }
+  if (settingName==F("t_b")){
+    t_b=settingValue.toFloat();
+  }
+  if (settingName==F("l_x1")){
+    l_x1=settingValue.toFloat();
+  }
+  if (settingName==F("l_b")){
+    l_b=settingValue.toFloat();
+  }
+  if (settingName==F("MQ131_RO")){
+    l_b=settingValue.toFloat();
   }
  }
 
@@ -669,24 +712,24 @@ void wifiBegin(){
     // check for the presence of the shield:
     if (WiFi.status() == WL_NO_SHIELD) {
     #if defined(DEVMODE)
-    Serial.println("WiFi shield not present");
+    Serial.println(F("WiFi shield not present"));
     #endif
-    log("WiFi shield not present");
+    log(F("WiFi shield not present"));
     warn();
     while (true);
   }
 
   String fv = WiFi.firmwareVersion();
-  if (fv != "1.1.0") {
+  if (fv != F("1.1.0")) {
     #if defined(DEVMODE)
-    Serial.println("Please upgrade the firmware");
+    Serial.println(F("Please upgrade the firmware"));
     #endif
     warn();
-    log("Please upgrade the firmware");
+    log(F("Please upgrade the firmware"));
   }
   while (status != WL_CONNECTED) {
     #if defined(DEVMODE)
-    Serial.print("Attempting to connect to SSID: ");
+    Serial.print(F("Attempting to connect to SSID: "));
     Serial.println(ssid);
     #endif
 
@@ -694,117 +737,8 @@ void wifiBegin(){
     delay(10000);// wait 10 seconds for connection
   }
   #if defined(DEVMODE)
-  Serial.println("Connected to wifi");
+  Serial.println(F("Connected to wifi"));
   #endif
-}
-/**
- * Disables automatic concentration of ZE sensors and flushes Serials Buffers to prevent unexpectects behaviors from interrupts
- */
-void winsenBegin(){
-
-  Serial1.begin(9600); //ZE CO-sensor
-  Serial2.begin(9600); //ZE NO2-sensor
-  Serial3.begin(9600); //ZE SO2-sensor
-
-  byte message[] = {0xFF,0x01, 0x78, 0x04, 0x00, 0x00, 0x00, 0x00, 0x83};//TODO: change bye array to "manual form"
-  Serial1.write(message,sizeof(message));
-  Serial2.write(message,sizeof(message));
-  Serial3.write(message,sizeof(message));
-  delay(1000);//Avoid problems with sensors response
-  while(Serial1.available()>0){
-    byte c = Serial1.read();
-  }
-  while(Serial2.available()>0){
-    byte c = Serial2.read();
-  }
-  while(Serial3.available()>0){
-    byte c = Serial3.read();
-  }
-  delay(1000);
-}
-/**
- * Reads the given contaminant from their respective Winsen Sensor
- * @param cont Contaminant to be read, could be CO, NO2 or SO2
- */
-void winsenRead(int cont){
-  #if defined(DEVMODE)
-  //Serial.println("Winsen Sensor Reading");
-  #endif
-
-  byte message[] = {0xFF,0x01, 0x78, 0x03, 0x00, 0x00, 0x00, 0x00, 0x84};
-  unsigned long sampletime_ms = 30000;
-  unsigned long starttime=millis();
-  byte measure[8]={0x00,0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-  float ppm=0;
-  switch (cont) {
-    case 1:
-      Serial1.write(message,sizeof(message));
-      delay(2000);
-      //for(;sampletime_ms > millis() - starttime;){
-      if (Serial1.available() > 0) {
-        Serial1.readBytes(measure,9);
-        if (measure[0]==0xff && measure[1]==0x78){
-          Serial1.readBytes(measure,9);
-        }
-        if (measure[0]==0xff && measure[1]==0x86){
-          ppm = measure[2]*256+measure[3];
-          co=ppm;
-          #if defined(DEVMODE)
-          Serial.print("  [CO]:  ");
-          Serial.println(ppm);
-          #endif
-
-        }else{
-          co=-1;
-        }
-      }
-      break;
-    case 2:
-      Serial2.write(message,sizeof(message));
-      delay(2000);
-      //for(;sampletime_ms > millis() - starttime;){
-      if (Serial2.available() > 0) {
-        Serial2.readBytes(measure,9);
-        if (measure[0]==0xff && measure[1]==0x78){
-          Serial2.readBytes(measure,9);
-        }
-        if (measure[0]==0xff && measure[1]==0x86){
-          ppm = measure[2]*256+measure[3];
-          no2==ppm;
-
-          #if defined(DEVMODE)
-          Serial.print("  [NO2]: ");
-          Serial.println(ppm);
-          #endif
-        }else{
-          no2=-1;
-        }
-      }
-      break;
-    case 3:
-    Serial3.write(message,sizeof(message));
-    delay(2000);
-    //for(;sampletime_ms > millis() - starttime;){
-    if (Serial3.available() > 0) {
-      Serial3.readBytes(measure,9);
-      if (measure[0]==0xff && measure[1]==0x78){
-        Serial3.readBytes(measure,9);
-      }
-      if (measure[0]==0xff && measure[1]==0x86){
-        ppm = measure[2]*256+measure[3];
-        so2=ppm;
-
-        #if defined(DEVMODE)
-        Serial.print("  [SO2]: ");
-        Serial.println(ppm);
-        #endif
-      }else{
-        so2=-1;
-      }
-    }
-    break;
-  }
-  winsenBegin(); //disable sensors.
 }
 /**
  * Perform a simple requesto
@@ -817,32 +751,32 @@ void simple_request(){
   // if there's a successful connection:
   if (client.connect(server, 80)) {
     #if defined(DEVMODE)
-    Serial.println("connecting...");
+    Serial.println(F("connecting..."));
     #endif
 
     //String getRequest ="GET"+"hola"+" "
     // send the HTTP GET request:
-    client.print("GET ");
-    client.print("/api");
-    client.print("/"); client.print(device);
-    client.print("/"); client.print(password); client.print("/timezone"); client.print(" HTTP/1.1");
-    client.println("");
+    client.print(F("GET "));
+    client.print(F("/api"));
+    client.print(F("/")); client.print(device);
+    client.print(F("/")); client.print(password); client.print(F("/timezone")); client.print(F(" HTTP/1.1"));
+    client.println(F(""));
     // parameters:
-    client.print("?z="); client.print(timezone); client.print(",");
-    client.print("h="); client.print(h); client.print(",");
-    client.print("t="); client.print(t); client.print(",");
-    client.print("l="); client.print(l); client.print(",");
-    client.print("co="); client.print(pm10); client.print(",");
-    client.print("o3="); client.print(pm10); client.print(",");
-    client.print("pm10="); client.print(pm10); client.print(",");
-    client.print("pm25="); client.print(pm25); client.print(",");
-    client.print("so2="); client.print(so2); client.print(",");
-    client.print("no2="); client.print(no2); client.print(",");
+    client.print(F("?z=")); client.print(timezone); client.print(F(","));
+    client.print(F("h=")); client.print(h); client.print(F(","));
+    client.print(F("t=")); client.print(t); client.print(F(","));
+    client.print(F("l=")); client.print(l); client.print(F(","));
+    client.print(F("co=")); client.print(pm10); client.print(F(","));
+    client.print(F("o3=")); client.print(pm10); client.print(F(","));
+    client.print(F("pm10=")); client.print(pm10); client.print(F(","));
+    client.print(F("pm25=")); client.print(pm25); client.print(F(","));
+    client.print(F("so2=")); client.print(so2); client.print(F(","));
+    client.print(F("no2=")); client.print(no2); client.print(F(","));
     client.println("");
     //server
-    client.print("Host: ");client.print(server);
-    client.println("User-Agent: Arduair");
-    client.println("Connection: close");
+    client.print(F("Host: "));client.print(server);
+    client.println(F("User-Agent: Arduair"));
+    client.println(F("Connection: close"));
     client.println();
   }
  }
@@ -852,32 +786,32 @@ void simple_request(){
 void requestConfig(){
   String config;
   #if defined(DEVMODE)
-  Serial.println("Resquesting Config file");
+  Serial.println(F("Resquesting Config file"));
   #endif
   client.stop();
   Serial.println(device);
   Serial.println(password);
   Serial.println(server);
   if (client.connect(server, 80)) {
-    client.print("GET ");
-    client.print("/api");
-    client.print("/"); client.print(device);
-    client.print("/"); client.print(password);
-    client.print("/config");
+    client.print(F("GET "));
+    client.print(F("/api"));
+    client.print(F("/")); client.print(device);
+    client.print(F("/")); client.print(password);
+    client.print(F("/config"));
     //http GET end
-    client.print(" HTTP/1.1");
-    client.println("");
-    client.println("");
+    client.print(F(" HTTP/1.1"));
+    client.println(F(""));
+    client.println(F(""));
     //server
-    client.print("Host: ");client.print(server);
-    client.println("User-Agent: Arduair");
-       client.println("Connection: close");
+    client.print(F("Host: "));client.print(server);
+    client.println(F("User-Agent: Arduair"));
+       client.println(F("Connection: close"));
     #if defined(DEVMODE)
-    Serial.println("Request done");
+    Serial.println(F("Request done"));
     #endif
   } else {
     #if defined(DEVMODE)
-    Serial.println("connection failed");
+    Serial.println(F("connection failed"));
     #endif
     warn();
   }
@@ -885,11 +819,11 @@ void requestConfig(){
   while (client.available() == 0) {
    if (timeout - millis() < 0) {
      #if defined(DEVMODE)
-     Serial.println("client Timeout !");
+     Serial.println(F("client Timeout !"));
      #endif
      client.stop();
      warn();
-     log("client Timeout !");
+     log(F("client Timeout !"));
    }
  }
  while(client.available()) {
@@ -899,8 +833,8 @@ void requestConfig(){
    #endif
  }
  //write config
-  SD.remove("CONFIG.txt");
-  myFile = SD.open("CONFIG.txt", FILE_WRITE); //open SD data.txt file
+  SD.remove(F("CONFIG.txt"));
+  myFile = SD.open(F("CONFIG.txt"), FILE_WRITE); //open SD data.txt file
   if (myFile){
     myFile.print(config);
     myFile.close();
@@ -926,13 +860,13 @@ void timeConfig(){
 
   Wire.endTransmission();
 
-  myFile = SD.open("CONFIG.txt", FILE_WRITE);
-  myFile.print("[");
-  myFile.print("resetclock=");
-  myFile.print("false");
-  myFile.println("]");
+  myFile = SD.open(F("CONFIG.txt"), FILE_WRITE);
+  myFile.print(F("["));
+  myFile.print(F("resetclock="));
+  myFile.print(F("false"));
+  myFile.println(F("]"));
   myFile.close();
-  log("Clock updated");
+  log(F("Clock updated"));
 }
 /**
  * Log function, it writes a message in a log file.
@@ -940,20 +874,20 @@ void timeConfig(){
  */
 void log(String message){
 
-  myFile = SD.open("LOG.txt", FILE_WRITE); //open SD data.txt file
+  myFile = SD.open(F("LOG.txt"), FILE_WRITE); //open SD data.txt file
   if (myFile){
     //write ISO date ex: 1994-11-05T08:15:30-05:00
-    myFile.print(year);myFile.print("-");
-    myFile.print(month);myFile.print("-");
-    myFile.print(monthDay);myFile.print("T");
-    myFile.print(hour);myFile.print(":");
-    myFile.print(minute);myFile.print(":");
+    myFile.print(year);myFile.print(F("-"));
+    myFile.print(month);myFile.print(F("-"));
+    myFile.print(monthDay);myFile.print(F("T"));
+    myFile.print(hour);myFile.print(F(":"));
+    myFile.print(minute);myFile.print(F(":"));
     myFile.print(second);
-    myFile.print("+5:00,   ");
+    myFile.print(F("+5:00,   "));
 
     myFile.print(message);
 
-    myFile.println(" ");
+    myFile.println(F(" "));
     myFile.close();
   }
 }
@@ -963,4 +897,14 @@ void log(String message){
 void warn(){
     digitalWrite(RED_LED_PIN,HIGH);
 }
-
+/**
+ * Calibrates the 'value' with the ecuation x^2*value+x*value+b
+ * @param  value value to be calibrated
+ * @param  x2    cuadratic param
+ * @param  x     linear param
+ * @param  b     constant param
+ * @return       calibrated value
+ */
+float calibrate(float value,float x2,float x,float b){
+  return value*x2*x2 + value*x + b;
+}
